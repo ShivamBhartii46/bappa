@@ -159,6 +159,23 @@
   }
   .sub-1{ color:#D8C6AE; font-size:.98rem; max-width:34ch; line-height:1.55; }
 
+  /* Shared blessing shown on Screen 1 only when a personalized link is opened. */
+  .shared-wish{
+    display:none;
+    width:100%;
+    max-width:520px;
+    color:var(--cream);
+    font-family:'Fraunces',serif;
+    font-style:italic;
+    font-size:clamp(1.05rem,3.9vw,1.35rem);
+    line-height:1.5;
+    text-align:center;
+    white-space:pre-line;
+    margin-top:-4px;
+  }
+  .shared-wish.show{ display:block; }
+  .shared-wish-line + .shared-wish-line{ margin-top:12px; }
+
   /* ---------- Temple doorway ---------- */
   :root{ --door-w:190px; }
   @media (min-width:480px){ :root{ --door-w:216px; } }
@@ -552,6 +569,11 @@
       <h1 class="headline-1" id="headline1">Bappa is at the temple doors</h1>
       <p class="sub-1" id="sub1">Before the celebration begins open them and welcome Him in.</p>
 
+      <div class="shared-wish" id="sharedWish" aria-live="polite">
+        <div class="shared-wish-line" id="sharedWishGreeting"></div>
+        <div class="shared-wish-line" id="sharedWishBlessing"></div>
+      </div>
+
       <button class="btn btn-primary" id="btnWelcome">Open the doors</button>
       <div class="step-dots"><span class="on"></span><span></span><span></span><span></span></div>
     </div>
@@ -791,6 +813,9 @@
   const headline1 = document.getElementById("headline1");
   const sub1 = document.getElementById("sub1");
   const btnWelcome = document.getElementById("btnWelcome");
+  const sharedWish = document.getElementById("sharedWish");
+  const sharedWishGreeting = document.getElementById("sharedWishGreeting");
+  const sharedWishBlessing = document.getElementById("sharedWishBlessing");
 
   function openTempleDoors(){
     doorIsOpen = true;
@@ -1024,6 +1049,15 @@
   const incomingCode = decodeURIComponent(location.hash.slice(1));
   if (incomingCode) {
     loadBlessingFromCode(incomingCode);
+
+    if (incomingRecipient && incomingSharedBlessing) {
+      sharedWishGreeting.textContent =
+        "🪔 Happy Ganesh Chaturthi wishes from " + (incomingSender || "Bappa") +
+        "\n\nBappa's blessing for " + incomingRecipient + ":";
+      sharedWishBlessing.textContent = incomingSharedBlessing;
+      sharedWish.classList.add("show");
+    }
+
     // Remove the payload from the visible URL after reading it.
     history.replaceState(null, "", location.pathname + location.search);
   }
@@ -1034,6 +1068,9 @@
     incomingSharedBlessing = "";
     incomingSender = "";
     incomingRecipient = "";
+    sharedWishGreeting.textContent = "";
+    sharedWishBlessing.textContent = "";
+    sharedWish.classList.remove("show");
     senderGreeting.textContent = "Happy Ganesh Chaturthi wishes from —";
     personalCard.classList.remove("show");
     btnShare.style.display = "none";
