@@ -175,6 +175,48 @@
   }
   .shared-wish.show{ display:block; }
   .shared-wish-line + .shared-wish-line{ margin-top:12px; }
+  /* Shared-link compact layout: keeps the personalized message and CTA visible on phones. */
+  #screen1.shared-mode{
+    padding:3vh 5vw;
+    overflow:hidden;
+  }
+  #screen1.shared-mode .screen-inner{
+    gap:clamp(8px,1.8vh,14px);
+  }
+  #screen1.shared-mode .eyebrow-line{ font-size:.78rem; }
+  #screen1.shared-mode .doorway{
+    --door-w:150px;
+    width:var(--door-w);
+    height:calc(var(--door-w) * 1.32);
+  }
+  #screen1.shared-mode .door-hint{ font-size:.82rem; }
+  #screen1.shared-mode .headline-1{
+    font-size:clamp(1.45rem,5vw,2.05rem);
+  }
+  #screen1.shared-mode .sub-1{
+    font-size:.86rem;
+    max-width:34ch;
+  }
+  #screen1.shared-mode .shared-wish{
+    font-size:clamp(.9rem,3.5vw,1.12rem);
+    line-height:1.35;
+    margin-top:0;
+  }
+  #screen1.shared-mode .shared-wish-line + .shared-wish-line{ margin-top:7px; }
+  #screen1.shared-mode .btn{
+    min-height:42px;
+    padding:11px 20px;
+    font-size:.86rem;
+  }
+
+  @media (max-height:700px){
+    #screen1.shared-mode{ padding:2vh 4vw; }
+    #screen1.shared-mode .screen-inner{ gap:7px; }
+    #screen1.shared-mode .doorway{ --door-w:125px; }
+    #screen1.shared-mode .headline-1{ font-size:1.5rem; }
+    #screen1.shared-mode .sub-1{ font-size:.78rem; }
+    #screen1.shared-mode .shared-wish{ font-size:.88rem; }
+  }
 
   /* ---------- Temple doorway ---------- */
   :root{ --door-w:190px; }
@@ -979,15 +1021,19 @@
     }
 
     const payload = {
-      v: 2,
+      v: 3,
       sender: sender,
       name: name,
       blessing: blessing
     };
 
-    const encoded = btoa(
-      unescape(encodeURIComponent(JSON.stringify(payload)))
-    ).replace(/=+$/, "");
+    const bytes = new TextEncoder().encode(JSON.stringify(payload));
+    let binary = "";
+    bytes.forEach(b => binary += String.fromCharCode(b));
+    const encoded = btoa(binary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
 
     const baseUrl = WEBSITE_URL.split("#")[0];
     const shareUrl = baseUrl + "#BAPPA-" + encoded;
@@ -1030,10 +1076,14 @@
     if (!code || !code.startsWith("BAPPA-")) return false;
 
     try{
-      const json = decodeURIComponent(escape(atob(code.slice(6))));
+      let raw = code.slice(6).replace(/-/g, "+").replace(/_/g, "/");
+      raw += "=".repeat((4 - (raw.length % 4)) % 4);
+      const binary = atob(raw);
+      const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+      const json = new TextDecoder().decode(bytes);
       const data = JSON.parse(json);
 
-      if (data.v !== 2 || !data.name || !data.blessing) return false;
+      if (![2, 3].includes(data.v) || !data.name || !data.blessing) return false;
 
       incomingSharedBlessing = data.blessing;
       incomingSender = data.sender || "";
@@ -1056,6 +1106,7 @@
         "\n\nBappa's blessing for " + incomingRecipient + ":";
       sharedWishBlessing.textContent = incomingSharedBlessing;
       sharedWish.classList.add("show");
+      document.getElementById("screen1").classList.add("shared-mode");
     }
 
     // Remove the payload from the visible URL after reading it.
@@ -1071,6 +1122,7 @@
     sharedWishGreeting.textContent = "";
     sharedWishBlessing.textContent = "";
     sharedWish.classList.remove("show");
+    document.getElementById("screen1").classList.remove("shared-mode");
     senderGreeting.textContent = "Happy Ganesh Chaturthi wishes from —";
     personalCard.classList.remove("show");
     btnShare.style.display = "none";
