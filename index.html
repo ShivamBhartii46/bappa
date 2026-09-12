@@ -832,7 +832,15 @@
     goTo("screen3");
   });
 
-  /* ---------------- Screen 3 : blessings ---------------- */
+  /* ---------------- Screen 3 : blessings ----------------
+   * Normal visit:
+   *   - Receive your blessing -> random blessing
+   *   - Give me another -> another random blessing
+   *
+   * Shared visit:
+   *   - Receive your blessing -> the blessing sent by the sender
+   *   - Give me another -> normal random blessing behavior
+   * -------------------------------------------------------- */
   const blessings = [
     "May every obstacle you meet become a quiet teacher, and every ending open onto something better.",
     "May your home stay filled with laughter, your table with abundance, and your heart with ease.",
@@ -860,24 +868,42 @@
   const btnAnother = document.getElementById("btnAnother");
   const btnToPersonal = document.getElementById("btnToPersonal");
 
-  function showBlessing(){
+  function showBlessing(useSharedBlessing = false){
     chime();
     blessingText.classList.remove("show");
     setTimeout(() => {
-      blessingText.textContent = pickBlessing();
+      if (useSharedBlessing && incomingSharedBlessing){
+        currentBlessing = incomingSharedBlessing;
+        blessingText.textContent = incomingSharedBlessing;
+        incomingSharedBlessing = ""; // shared blessing is only the first reveal
+      } else {
+        blessingText.textContent = pickBlessing();
+      }
       blessingText.classList.add("show");
     }, 220);
   }
 
   btnReveal.addEventListener("click", () => {
-    showBlessing();
+    showBlessing(true);
     btnReveal.style.display = "none";
     btnAnother.style.display = "inline-block";
     btnToPersonal.style.display = "inline-block";
   });
-  btnAnother.addEventListener("click", showBlessing);
+
+  // Exactly like the normal version: every "another" gives a new random blessing.
+  btnAnother.addEventListener("click", () => showBlessing(false));
 
   btnToPersonal.addEventListener("click", () => {
+    if (incomingRecipient){
+      senderInput.value = incomingSender;
+      nameInput.value = incomingRecipient;
+      senderGreeting.textContent =
+        "Happy Ganesh Chaturthi wishes from " + (incomingSender || "Bappa");
+      personalName.textContent = incomingRecipient;
+      personalText.textContent = currentBlessing || "";
+      personalCard.classList.add("show");
+      btnShare.style.display = "inline-block";
+    }
     goTo("screen4");
   });
 
@@ -967,6 +993,14 @@
     }
   });
 
+  /*
+   * Shared-link data is remembered while the recipient goes through
+   * the COMPLETE Bappa experience from Screen 1 onward.
+   */
+  let incomingSharedBlessing = "";
+  let incomingSender = "";
+  let incomingRecipient = "";
+
   function loadBlessingFromCode(code){
     if (!code || !code.startsWith("BAPPA-")) return false;
 
@@ -976,15 +1010,11 @@
 
       if (data.v !== 2 || !data.name || !data.blessing) return false;
 
-      senderInput.value = data.sender || "";
-      nameInput.value = data.name;
-      senderGreeting.textContent =
-        "Happy Ganesh Chaturthi wishes from " + (data.sender || "Bappa");
-      personalName.textContent = data.name;
-      personalText.textContent = data.blessing;
-      personalCard.classList.add("show");
-      btnShare.style.display = "inline-block";
-      goTo("screen4");
+      incomingSharedBlessing = data.blessing;
+      incomingSender = data.sender || "";
+      incomingRecipient = data.name;
+
+      // IMPORTANT: stay on Screen 1. The recipient gets the full experience.
       return true;
     }catch(e){
       return false;
@@ -992,11 +1022,18 @@
   }
 
   const incomingCode = decodeURIComponent(location.hash.slice(1));
-  if (incomingCode) loadBlessingFromCode(incomingCode);
+  if (incomingCode) {
+    loadBlessingFromCode(incomingCode);
+    // Remove the payload from the visible URL after reading it.
+    history.replaceState(null, "", location.pathname + location.search);
+  }
 
   document.getElementById("btnRestart").addEventListener("click", () => {
     senderInput.value = "";
     nameInput.value = "";
+    incomingSharedBlessing = "";
+    incomingSender = "";
+    incomingRecipient = "";
     senderGreeting.textContent = "Happy Ganesh Chaturthi wishes from —";
     personalCard.classList.remove("show");
     btnShare.style.display = "none";
